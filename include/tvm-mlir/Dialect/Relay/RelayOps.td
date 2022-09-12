@@ -18,7 +18,7 @@ def Relay_ConstantOp : Relay_Op<"constant", [ConstantLike, NoSideEffect, InferTe
 
   let results = (outs AnyStaticShapeTensor:$output);
 
-  let builders = [OpBuilder<(ins "::mlir::ElementsAttr":$value)>];
+  let builders = [OpBuilder<(ins "::mlir::DenseElementsAttr":$value)>];
 
 //   let hasCustomAssemblyFormat = 1;
 }
