@@ -1,6 +1,6 @@
-#include "tvm-mlir/Dialect/Relay/RelayDialect.h"
+#include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
 
-#include "tvm-mlir/Dialect/Relay/RelayOps.h"
+#include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
 #include "tvm-mlir/Dialect/Relay/RelayOpsDialect.cpp.inc"
 
 namespace mlir {

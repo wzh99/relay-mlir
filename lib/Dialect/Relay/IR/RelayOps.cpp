@@ -1,7 +1,7 @@
-#include "tvm-mlir/Dialect/Relay/RelayOps.h"
+#include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
 
 #include "mlir/IR/OpImplementation.h"
-#include "tvm-mlir/Dialect/Relay/RelayDialect.h"
+#include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
 
 #define GET_OP_CLASSES
 #include "tvm-mlir/Dialect/Relay/RelayOps.cpp.inc"

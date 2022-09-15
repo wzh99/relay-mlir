@@ -9,9 +9,9 @@ class Relay_Op<string mnemonic, list<Trait> traits> : Op<Relay_Dialect, mnemonic
 
 // Constant
 def Relay_ConstantOp : Relay_Op<"constant", [ConstantLike, NoSideEffect, InferTensorType]> {
-  let summary = "Constant operator";
+  let summary = "A constant expression";
   let description = [{
-    Represents a constant value.
+    This operator represents a constant tensor value.
   }];
 
   let arguments = (ins ElementsAttr:$value);
@@ -19,8 +19,6 @@ def Relay_ConstantOp : Relay_Op<"constant", [ConstantLike, NoSideEffect, InferTe
   let results = (outs AnyStaticShapeTensor:$output);
 
   let builders = [OpBuilder<(ins "::mlir::DenseElementsAttr":$value)>];
-
-//   let hasCustomAssemblyFormat = 1;
 }
 
 #endif
