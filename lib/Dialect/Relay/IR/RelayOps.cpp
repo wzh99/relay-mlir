@@ -9,14 +9,31 @@
 namespace mlir {
 namespace relay {
 
-void ConstantOp::build(OpBuilder &odsBuilder, OperationState &odsState,
-                       DenseElementsAttr value) {
-    build(odsBuilder, odsState, value.getType(), value);
+LogicalResult ConstantOp::inferReturnTypeComponents(
+    MLIRContext *context, llvm::Optional<Location> location,
+    ValueShapeRange operands, DictionaryAttr attributes, RegionRange regions,
+    llvm::SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
+    return success();
 }
 
-LogicalResult ConstantOp::inferReturnTypeComponents(
-    MLIRContext *, llvm::Optional<Location>, ValueShapeRange, DictionaryAttr,
-    RegionRange, llvm::SmallVectorImpl<ShapedTypeComponents> &) {
+LogicalResult ReLUOp::inferReturnTypeComponents(
+    MLIRContext *context, llvm::Optional<Location> location,
+    ValueShapeRange operands, DictionaryAttr attributes, RegionRange regions,
+    llvm::SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
+    return success();
+}
+
+LogicalResult DenseOp::inferReturnTypeComponents(
+    MLIRContext *context, llvm::Optional<Location> location,
+    ValueShapeRange operands, DictionaryAttr attributes, RegionRange regions,
+    llvm::SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
+    return success();
+}
+
+LogicalResult BiasAddOp::inferReturnTypeComponents(
+    MLIRContext *context, llvm::Optional<Location> location,
+    ValueShapeRange operands, DictionaryAttr attributes, RegionRange regions,
+    llvm::SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
     return success();
 }
 

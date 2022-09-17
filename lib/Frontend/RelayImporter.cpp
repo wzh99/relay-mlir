@@ -1,8 +1,9 @@
 #include "tvm-mlir/Frontend/RelayImporter.hpp"
 
+#include "OpConverter.hpp"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
-#include "tvm-mlir/Support/Error.hpp"
+#include "tvm-mlir/Support/Common.hpp"
 #include "tvm/relay/expr_functor.h"
 
 namespace mlir {
@@ -17,12 +18,15 @@ public:
     ModuleOp Import(tvm::IRModule tvmMod);
 
 private:
+    using Base = tvm::relay::ExprFunctor<Value(const tvm::relay::Expr &)>;
+
     std::string srcPath;
     OpBuilder builder;
     std::unordered_map<tvm::relay::Expr, Value, tvm::ObjectHash,
                        tvm::ObjectEqual>
         exprValueMap;
 
+    Value VisitExpr(const tvm::relay::Expr &n) override;
     Value VisitExpr_(const tvm::relay::ConstantNode *constant) override;
     Value VisitExpr_(const tvm::relay::VarNode *var) override;
     Value VisitExpr_(const tvm::relay::CallNode *call) override;
@@ -84,8 +88,8 @@ inline static TensorType extractRelayVarType(const tvm::relay::Var &var,
 
 ModuleOp RelayImporter::Import(tvm::IRModule tvmMod) {
     // Create MLIR module
-    auto mlirMod = ModuleOp::create(builder.getUnknownLoc());
-    builder.setInsertionPointToEnd(mlirMod.getBody());
+    auto mod = ModuleOp::create(builder.getUnknownLoc());
+    builder.setInsertionPointToEnd(mod.getBody());
 
     // Create prototype of main function
     auto relayMain = tvmMod->functions.at(tvmMod->GetGlobalVar("main"))
@@ -94,8 +98,8 @@ ModuleOp RelayImporter::Import(tvm::IRModule tvmMod) {
     for (const auto &var : relayMain->params)
         paramTypes.push_back(extractRelayVarType(var, builder));
     auto funcType = builder.getFunctionType(paramTypes, llvm::None);
-    auto mainFunc = builder.create<func::FuncOp>(cvtLoc(relayMain->span),
-                                                 "main", funcType);
+    auto mainFunc =
+        builder.create<func::FuncOp>(cvtLoc(relayMain->span), "main", funcType);
 
     // Add parameter values to symbol table
     auto entry = mainFunc.addEntryBlock();
@@ -109,9 +113,15 @@ ModuleOp RelayImporter::Import(tvm::IRModule tvmMod) {
     builder.setInsertionPointToStart(entry);
     auto ret = VisitExpr(relayMain->body);
     builder.create<func::ReturnOp>(cvtLoc(relayMain->body->span), ret);
-    mlirMod.dump();
 
-    return mlirMod;
+    return mod;
+}
+
+Value RelayImporter::VisitExpr(const tvm::relay::Expr &expr) {
+    if (exprValueMap.count(expr)) return exprValueMap[expr];
+    auto ret = Base::VisitExpr(expr);
+    exprValueMap.insert({expr, ret});
+    return ret;
 }
 
 template <class T>
@@ -147,9 +157,20 @@ Value RelayImporter::VisitExpr_(const tvm::relay::ConstantNode *constant) {
     return op.getResult();
 }
 
-Value RelayImporter::VisitExpr_(const tvm::relay::VarNode *var) { return {}; }
+Value RelayImporter::VisitExpr_(const tvm::relay::VarNode *var) {
+    return exprValueMap.at(tvm::GetRef<tvm::relay::Var>(var));
+}
 
-Value RelayImporter::VisitExpr_(const tvm::relay::CallNode *call) { return {}; }
+Value RelayImporter::VisitExpr_(const tvm::relay::CallNode *call) {
+    auto relayOp = call->op.as<tvm::relay::OpNode>();
+    if (!relayOp)
+        FatalError("Call to non-operator expression is not supported.");
+    std::vector<Value> operands;
+    for (auto &arg : call->args) operands.push_back(VisitExpr(arg));
+    auto op = ConvertRelayOp(relayOp->name, operands, call->attrs,
+                             cvtLoc(call->span), builder);
+    return op->getResult(0);
+}
 
 }  // namespace relay
 }  // namespace mlir

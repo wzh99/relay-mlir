@@ -6,10 +6,11 @@
 namespace mlir {
 namespace relay {
 
+/// Fatal error
 template <class S, class... Args>
 [[noreturn]] inline void FatalError(const S &format, Args &&...args) {
-    auto msg = fmt::format(format, args...);
-    llvm::report_fatal_error(llvm::StringRef(format));
+    auto msg = fmt::format(format, std::forward<Args>(args)...);
+    llvm::report_fatal_error(llvm::StringRef(msg));
 }
 
 }  // namespace relay
