@@ -53,9 +53,10 @@ inline static llvm::ArrayRef<int64_t> cvtTVMShape(
     return llvm::makeArrayRef(shape);
 }
 
-static std::unordered_map<tvm::DataType, std::function<Type(OpBuilder &)>>
-    typeMap{{tvm::DataType::Float(32),
-             [](OpBuilder &b) { return b.getF32Type(); }}};
+static Type getF32Type(OpBuilder &b) { return b.getF32Type(); }
+
+static std::unordered_map<tvm::DataType, Type (*)(OpBuilder &)> typeMap{
+    {tvm::DataType::Float(32), getF32Type}};
 
 inline static Type cvtTVMDataType(const tvm::DataType &dtype,
                                   OpBuilder &builder) {
@@ -125,16 +126,15 @@ Value RelayImporter::VisitExpr(const tvm::relay::Expr &expr) {
 }
 
 template <class T>
-static DenseElementsAttr createDense(RankedTensorType &&type, char *data,
+static DenseElementsAttr createDense(RankedTensorType type, char *data,
                                      size_t size) {
     return DenseElementsAttr::get(
-        std::move(type),
-        llvm::makeArrayRef(reinterpret_cast<T *>(data),
-                           reinterpret_cast<T *>(data + size)));
+        type, llvm::makeArrayRef(reinterpret_cast<T *>(data),
+                                 reinterpret_cast<T *>(data + size)));
 }
 
-static std::unordered_map<
-    tvm::DataType, DenseElementsAttr (*)(RankedTensorType &&, char *, size_t)>
+static std::unordered_map<tvm::DataType, DenseElementsAttr (*)(RankedTensorType,
+                                                               char *, size_t)>
     denseCreateFn{{tvm::DataType::Float(32), createDense<float>}};
 
 Value RelayImporter::VisitExpr_(const tvm::relay::ConstantNode *constant) {
@@ -151,8 +151,8 @@ Value RelayImporter::VisitExpr_(const tvm::relay::ConstantNode *constant) {
     if (!denseCreateFn.count(tensor.DataType()))
         FatalError("Data type is not supported.");
     auto attr = denseCreateFn[tvmDType](
-        std::move(type), reinterpret_cast<char *>(tensor->data), size);
-    auto op = builder.create<ConstantOp>(cvtLoc(constant->span), attr);
+        type, reinterpret_cast<char *>(tensor->data), size);
+    auto op = builder.create<ConstantOp>(cvtLoc(constant->span), type, attr);
 
     return op.getResult();
 }

@@ -5,12 +5,16 @@ include "tvm-mlir/Dialect/Relay/RelayDialect.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
+def InferShapedType : DeclareOpInterfaceMethods<InferShapedTypeOpInterface, 
+    ["inferReturnTypeComponents"]>;
+
 /// Relay operator
-class Relay_Op<string mnemonic, list<Trait> traits> : Op<Relay_Dialect, mnemonic, traits>;
+class Relay_Op<string mnemonic, list<Trait> traits> 
+    : Op<Relay_Dialect, mnemonic, traits # [NoSideEffect, InferShapedType]>;
 
 /// Constant
 def Relay_ConstantOp : Relay_Op<"constant", 
-        [ConstantLike, NoSideEffect, InferTensorType]> {
+        [ConstantLike]> {
     let summary = "A constant tensor.";
     let description = [{
     This operator represents a constant tensor value.
@@ -23,7 +27,7 @@ def Relay_ConstantOp : Relay_Op<"constant",
 /// Unary-elementwise operators
 class Relay_UnaryElementwiseOp<string mnemonic, list<Trait> traits, Type ArgType, 
         Type ResultType = ArgType> : Relay_Op<mnemonic, 
-        traits # [Elementwise, NoSideEffect, InferTensorType]> {
+        traits # [Elementwise]> {
     let arguments = (ins ArgType:$data);
     let results = (outs ResultType:$result);
 }
@@ -38,7 +42,7 @@ def Relay_ReLUOp : Relay_UnaryElementwiseOp<"nn.relu", [], AnyTensor> {
 
 // nn.dense
 def Relay_DenseOp : Relay_Op<"nn.dense", 
-    [SameOperandsElementType, NoSideEffect, InferTensorType]> {
+    [SameOperandsElementType]> {
     let summary = "Dense operator.";
     let description = [{
     Applies a linear transformation Y = X * W^T. 
@@ -50,7 +54,7 @@ def Relay_DenseOp : Relay_Op<"nn.dense",
 
 // nn.bias_add
 def Relay_BiasAddOp : Relay_Op<"nn.bias_add", 
-        [SameOperandsElementType, NoSideEffect, InferTensorType]> {
+        [SameOperandsElementType]> {
     let summary = "Add-bias operator.";
     let description = [{
     Add 1D bias to the axis of data. 

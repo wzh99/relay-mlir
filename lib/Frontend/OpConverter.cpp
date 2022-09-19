@@ -14,15 +14,16 @@ inline static UnrankedTensorType getSameElemTensorType(const Value &value) {
         value.getType().cast<TensorType>().getElementType());
 }
 
-#define CVT_FUNC(Op)                                              \
-    static OpState cvt##Op(const std::vector<Value> &operands,    \
-                           const tvm::Attrs &attrs, Location loc, \
-                           OpBuilder &builder)
+#define CVT_FUNC_PARAMS                                                    \
+    const std::vector<Value> &args, const tvm::Attrs &attrs, Location loc, \
+        OpBuilder &builder
+
+#define CVT_FUNC(Op) static OpState cvt##Op(CVT_FUNC_PARAMS)
 
 template <class O, int... argIndices>
 inline CVT_FUNC(SameElemTypeNoAttr) {
-    return builder.create<O>(loc, getSameElemTensorType(operands[0]),
-                             operands[argIndices]...);
+    return builder.create<O>(loc, getSameElemTensorType(args[0]),
+                             args[argIndices]...);
 }
 
 #define ONE_ARG 0
@@ -30,25 +31,18 @@ inline CVT_FUNC(SameElemTypeNoAttr) {
 
 CVT_FUNC(BiasAdd) {
     auto biasAddAttrs = attrs.as<tvm::relay::BiasAddAttrs>();
-    return builder.create<BiasAddOp>(loc, getSameElemTensorType(operands[0]),
-                                     operands[0], operands[1],
-                                     biasAddAttrs->axis);
+    return builder.create<BiasAddOp>(loc, getSameElemTensorType(args[0]),
+                                     args[0], args[1], biasAddAttrs->axis);
 }
 
-static std::unordered_map<tvm::String,
-                          OpState (*)(const std::vector<Value> &operands,
-                                      const tvm::Attrs &attrs, Location loc,
-                                      OpBuilder &builder)>
-    cvtFuncs{{"nn.relu", cvtSameElemTypeNoAttr<ReLUOp, ONE_ARG>},
-             {"nn.dense", cvtSameElemTypeNoAttr<DenseOp, TWO_ARG>},
-             {"nn.bias_add", cvtBiasAdd}};
+static std::unordered_map<tvm::String, OpState (*)(CVT_FUNC_PARAMS)> cvtFuncs{
+    {"nn.relu", cvtSameElemTypeNoAttr<ReLUOp, ONE_ARG>},
+    {"nn.dense", cvtSameElemTypeNoAttr<DenseOp, TWO_ARG>},
+    {"nn.bias_add", cvtBiasAdd}};
 
-OpState ConvertRelayOp(const tvm::String &name,
-                       const std::vector<Value> &operands,
-                       const tvm::Attrs &attrs, Location loc,
-                       OpBuilder &builder) {
+OpState ConvertRelayOp(const tvm::String &name, CVT_FUNC_PARAMS) {
     if (cvtFuncs.count(name))
-        return cvtFuncs[name](operands, attrs, loc, builder);
+        return cvtFuncs[name](args, attrs, loc, builder);
     else
         FatalError("Operator `{}` is not supported.", name.c_str());
 }

@@ -6,9 +6,9 @@
 namespace mlir {
 namespace relay {
 
-OpState ConvertRelayOp(const tvm::String &name,
-                       const std::vector<Value> &operands,
-                       const tvm::Attrs &attrs, Location loc, OpBuilder &builder);
+OpState ConvertRelayOp(const tvm::String &name, const std::vector<Value> &args,
+                       const tvm::Attrs &attrs, Location loc,
+                       OpBuilder &builder);
 
 }
 }  // namespace mlir
