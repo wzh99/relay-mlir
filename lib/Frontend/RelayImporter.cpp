@@ -47,7 +47,7 @@ inline static llvm::ArrayRef<int64_t> cvtTVMShape(
     std::vector<int64_t> shape;
     for (const auto &dim : relayShape) {
         auto imm = dim.as<tvm::IntImmNode>();
-        if (!imm) FatalError("Shape dimension is not constant.");
+        if (!imm) Fatal("Shape dimension is not constant.");
         shape.push_back(imm->value);
     }
     return llvm::makeArrayRef(shape);
@@ -63,7 +63,7 @@ inline static Type cvtTVMDataType(const tvm::DataType &dtype,
     if (typeMap.count(dtype))
         return typeMap[dtype](builder);
     else
-        FatalError("Data type is not supported.");
+        Fatal("Data type is not supported.");
 }
 
 inline static TensorType cvtRelayTensorType(
@@ -77,12 +77,11 @@ inline static TensorType extractRelayVarType(const tvm::relay::Var &var,
                                              OpBuilder &builder) {
     auto &type = var->type_annotation;
     if (!type.defined())
-        FatalError("Relay variable {} is not type-annotated.",
-                   var->name_hint().c_str());
+        Fatal("Relay variable {} is not type-annotated.",
+              var->name_hint().c_str());
     auto tvmTensorType = type.as<tvm::relay::TensorTypeNode>();
     if (!tvmTensorType)
-        FatalError("Variable {} is not of tensor type.",
-                   var->name_hint().c_str());
+        Fatal("Variable {} is not of tensor type.", var->name_hint().c_str());
     auto mlirTensorType = cvtRelayTensorType(tvmTensorType, builder);
     return cvtRelayTensorType(tvmTensorType, builder);
 }
@@ -149,7 +148,7 @@ Value RelayImporter::VisitExpr_(const tvm::relay::ConstantNode *constant) {
 
     // Create constant operation
     if (!denseCreateFn.count(tensor.DataType()))
-        FatalError("Data type is not supported.");
+        Fatal("Data type is not supported.");
     auto attr = denseCreateFn[tvmDType](
         type, reinterpret_cast<char *>(tensor->data), size);
     auto op = builder.create<ConstantOp>(cvtLoc(constant->span), type, attr);
@@ -163,8 +162,7 @@ Value RelayImporter::VisitExpr_(const tvm::relay::VarNode *var) {
 
 Value RelayImporter::VisitExpr_(const tvm::relay::CallNode *call) {
     auto relayOp = call->op.as<tvm::relay::OpNode>();
-    if (!relayOp)
-        FatalError("Call to non-operator expression is not supported.");
+    if (!relayOp) Fatal("Call to non-operator expression is not supported.");
     std::vector<Value> operands;
     for (auto &arg : call->args) operands.push_back(VisitExpr(arg));
     auto op = ConvertRelayOp(relayOp->name, operands, call->attrs,

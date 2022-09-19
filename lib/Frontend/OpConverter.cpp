@@ -44,7 +44,7 @@ OpState ConvertRelayOp(const tvm::String &name, CVT_FUNC_PARAMS) {
     if (cvtFuncs.count(name))
         return cvtFuncs[name](args, attrs, loc, builder);
     else
-        FatalError("Operator `{}` is not supported.", name.c_str());
+        Fatal("Operator `{}` is not supported.", name.c_str());
 }
 
 }  // namespace relay

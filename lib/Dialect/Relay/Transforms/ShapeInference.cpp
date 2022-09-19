@@ -35,8 +35,8 @@ void ShapeInference::runOnOperation() {
             op->getContext(), op->getLoc(), op->getOperands(),
             op->getAttrDictionary(), op->getRegions(), inferredShapes);
         if (result.failed())
-            FatalError("Cannot infer type for operator `{}`.",
-                       op->getName().getStringRef());
+            Fatal("Cannot infer type for operator `{}`.",
+                  op->getName().getStringRef());
 
         // Assign inferred types to output tensors
         for (auto [value, type] : zip(op->getResults(), inferredShapes))
