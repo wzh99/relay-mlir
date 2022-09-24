@@ -5,6 +5,7 @@
 #include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
 #include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
 #include "tvm-mlir/Frontend/RelayImporter.hpp"
+#include "tvm-mlir/Support/Common.hpp"
 #include "tvm/ir/module.h"
 #include "tvm/parser/parser.h"
 #include "tvm/relay/expr.h"
@@ -25,7 +26,7 @@ int main(int argc, char const *argv[]) {
     auto irmod = tvm::IRModule::FromText(code, "from_string");
     auto mod = relay::ImportRelay(irmod, "from_string", ctx);
     PassManager pm(&ctx, PassManager::Nesting::Implicit);
-    pm.addPass(relay::createShapeInferencePass());
-    pm.run(mod);
+    pm.addPass(relay::createShapeInference());
+    if (pm.run(mod).failed()) Fatal("Failed to run passes on module.");
     mod.dump();
 }

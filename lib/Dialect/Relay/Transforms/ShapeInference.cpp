@@ -29,7 +29,6 @@ void ShapeInference::runOnOperation() {
         // Infer type with operator interface
         auto opInterface = dyn_cast<InferShapedTypeOpInterface>(op);
         if (!opInterface) return;
-        ValueShapeRange operands(op->getOperands());
         SmallVector<ShapedTypeComponents> inferredShapes;
         auto result = opInterface.inferReturnTypeComponents(
             op->getContext(), op->getLoc(), op->getOperands(),
@@ -51,7 +50,7 @@ void ShapeInference::runOnOperation() {
     func.setType(funcType);
 }
 
-std::unique_ptr<Pass> createShapeInferencePass() {
+std::unique_ptr<Pass> createShapeInference() {
     return std::make_unique<ShapeInference>();
 }
 

@@ -6,7 +6,6 @@
 #include "llvm/Support/ErrorHandling.h"
 
 namespace mlir {
-namespace relay {
 
 /// Fatal error
 template <class S, class... Args>
@@ -27,5 +26,4 @@ inline void Debug(const S &format, Args &&...args) {
     llvm::dbgs() << fmt::format(format, std::forward<Args>(args)...);
 }
 
-}  // namespace relay
 }  // namespace mlir

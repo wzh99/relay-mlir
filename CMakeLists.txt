@@ -4,7 +4,16 @@ set(CMAKE_CXX_STANDARD 17)
 
 if(MSVC)
     add_compile_options(/wd4005 /wd4251 /wd4530)
-endif(MSVC)
+else()
+    add_compile_options(
+        -frtti
+        -fexceptions 
+        -Wno-macro-redefined 
+        -Wno-suggest-override 
+        -Wno-non-virtual-dtor 
+        -Wno-cast-qual
+    )
+endif()
 
 set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
 

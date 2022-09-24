@@ -82,7 +82,6 @@ inline static TensorType extractRelayVarType(const tvm::relay::Var &var,
     auto tvmTensorType = type.as<tvm::relay::TensorTypeNode>();
     if (!tvmTensorType)
         Fatal("Variable {} is not of tensor type.", var->name_hint().c_str());
-    auto mlirTensorType = cvtRelayTensorType(tvmTensorType, builder);
     return cvtRelayTensorType(tvmTensorType, builder);
 }
 

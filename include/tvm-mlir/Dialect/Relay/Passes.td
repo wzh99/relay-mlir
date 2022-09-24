@@ -10,7 +10,7 @@ def ShapeInference : Pass<"relay-shape-inference", "func::FuncOp"> {
     constraints of operators, and infer shapes of output tensors. 
     }];
 
-    let constructor = "createShapeInferencePass()";
+    let constructor = "createShapeInference()";
     let dependentDialects = [
         "func::FuncDialect",
         "relay::RelayDialect"
