@@ -1,5 +1,6 @@
 add_mlir_dialect_library(MLIRRelayTransforms
     ShapeInference.cpp
+    OpFusion.cpp
 
     DEPENDS
     MLIRRelayPassIncGen

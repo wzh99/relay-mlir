@@ -27,6 +27,7 @@ int main(int argc, char const *argv[]) {
     auto mod = relay::ImportRelay(irmod, "from_string", ctx);
     PassManager pm(&ctx, PassManager::Nesting::Implicit);
     pm.addPass(relay::createShapeInference());
+    pm.addPass(relay::createOpFusion());
     if (pm.run(mod).failed()) Fatal("Failed to run passes on module.");
     mod.dump();
 }

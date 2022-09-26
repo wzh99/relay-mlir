@@ -17,13 +17,13 @@ template <class S, class... Args>
 /// Error
 template <class S, class... Args>
 inline void Error(const S &format, Args &&...args) {
-    llvm::errs() << fmt::format(format, std::forward<Args>(args)...);
+    llvm::errs() << fmt::format(format, std::forward<Args>(args)...) << '\n';
 }
 
 /// Error
 template <class S, class... Args>
 inline void Debug(const S &format, Args &&...args) {
-    llvm::dbgs() << fmt::format(format, std::forward<Args>(args)...);
+    llvm::dbgs() << fmt::format(format, std::forward<Args>(args)...) << '\n';
 }
 
 }  // namespace mlir
