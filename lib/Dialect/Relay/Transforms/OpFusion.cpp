@@ -72,24 +72,16 @@ LogicalResult OpFusionPattern::matchAndRewrite(
 
     // Find all arguments of the new function
     DenseSet<Operation *> opSet(group.ops.begin(), group.ops.end());
-    std::vector<Value> args;
+    SmallVector<Value> args;
     for (auto op : group.ops)
         for (auto arg : op->getOperands())
             if (!opSet.contains(arg.getDefiningOp())) args.push_back(arg);
 
     // Find all results of the new function
-    std::vector<Value> results;
-    std::vector<std::pair<size_t, size_t>> resultIndices;
-    for (auto outOpZip : llvm::enumerate(group.outputs)) {
-        for (auto resultZip : llvm::enumerate(outOpZip.value()->getResults())) {
-            auto result = resultZip.value();
-            if (llvm::any_of(result.getUsers(), [&](Operation *op) {
-                    return !opSet.contains(op);
-                })) {
-                results.push_back(result);
-                resultIndices.push_back({outOpZip.index(), resultZip.index()});
-            }
-        }
+    SmallVector<Value> results;
+    for (auto outOp : group.outputs) {
+        auto opResults = outOp->getResults();
+        results.append(opResults.begin(), opResults.end());
     }
 
     // Create prototype of the function
@@ -110,15 +102,17 @@ LogicalResult OpFusionPattern::matchAndRewrite(
     for (auto [arg, param] : llvm::zip(args, block->getArguments()))
         mapper.map(arg, param);
     rewriter.setInsertionPointToStart(block);
-    std::vector<Operation *> funcOutputs;
+    SmallVector<Operation *> funcOutOps;
     for (auto op : group.ops) {
         auto clonedOp = rewriter.clone(*op, mapper);
         if (llvm::is_contained(group.outputs, op))
-            funcOutputs.push_back(clonedOp);
+            funcOutOps.push_back(clonedOp);
     }
     SmallVector<Value> funcResults;
-    for (auto [i, j] : resultIndices)
-        funcResults.push_back(funcOutputs[i]->getResult(j));
+    for (auto outOp : funcOutOps) {
+        auto opResults = outOp->getResults();
+        funcResults.append(opResults.begin(), opResults.end());
+    }
     rewriter.create<func::ReturnOp>(root->getLoc(), funcResults);
 
     // Replace group with function call
@@ -127,16 +121,12 @@ LogicalResult OpFusionPattern::matchAndRewrite(
         root->getLoc(), FlatSymbolRefAttr::get(func), outTypes, args);
 
     // Replace uses of group outputs
-    auto callResults = funcCall.getResults();
-    auto indexIter = resultIndices.begin();
-    for (auto opZip : llvm::enumerate(group.outputs)) {
-        auto begin = indexIter;
-        while (indexIter->first == opZip.index()) ++indexIter;
-        if (begin == indexIter) continue;
-        SmallVector<Value> newValues;
-        for (auto [_, j] : llvm::iterator_range(begin, indexIter))
-            newValues.push_back(callResults[j]);
-        rewriter.replaceOp(opZip.value(), newValues);
+    auto resultIter = funcCall.getResults().begin();
+    for (auto op : group.outputs) {
+        SmallVector<Value> newValues(resultIter,
+                                     resultIter + op->getNumResults());
+        rewriter.replaceOp(op, newValues);
+        resultIter += op->getNumResults();
     }
 
     return success();
