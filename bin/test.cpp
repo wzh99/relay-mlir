@@ -1,6 +1,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/PassManager.h"
+#include "tvm-mlir/Conversion/RelayToAffine.hpp"
 #include "tvm-mlir/Dialect/Relay/Passes.hpp"
 #include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
 #include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
@@ -31,6 +32,7 @@ int main(int argc, char const *argv[]) {
     PassManager pm(&ctx, PassManager::Nesting::Implicit);
     pm.addPass(relay::createShapeInference());
     pm.addPass(relay::createOpFusion());
+    pm.addPass(createRelayToAffine());
     pm.run(mod).succeeded();
     mod.dump();
 }
