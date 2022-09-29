@@ -32,9 +32,7 @@ void ShapeInference::runOnOperation() {
         auto result = opInterface.inferReturnTypeComponents(
             op->getContext(), op->getLoc(), op->getOperands(),
             op->getAttrDictionary(), op->getRegions(), inferredShapes);
-        if (result.failed())
-            Fatal("Cannot infer type for operator `{}`.",
-                  op->getName().getStringRef());
+        if (result.failed()) signalPassFailure();
 
         // Assign inferred types to output tensors
         for (auto [value, type] : zip(op->getResults(), inferredShapes))

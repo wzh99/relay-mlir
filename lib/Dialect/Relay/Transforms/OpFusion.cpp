@@ -62,7 +62,9 @@ private:
 LogicalResult OpFusionPattern::matchAndRewrite(
     Operation *root, PatternRewriter &rewriter) const {
     // Find out the group
-    if (root->getDialect()->getNamespace() != "relay") return success();
+    if (root->getDialect()->getNamespace() !=
+        RelayDialect::getDialectNamespace())
+        return success();
     if (cast<func::FuncOp>(root->getParentOp()).getName() != "main")
         return success();
     auto &group = groups[opGrpIdx.at(root)];
