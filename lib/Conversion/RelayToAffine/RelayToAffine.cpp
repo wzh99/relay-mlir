@@ -163,12 +163,11 @@ struct LowerDense : public LowerOp<relay::DenseOp> {
 
         FOR(i, 0, batchSize,   // for (i, 0, data.shape[0])
             FOR(j, 0, outDim,  // for (j, 0, weight.shape[0])
-                auto init = F32_CONST(1.f);
-                STORE(init, result, (ValueRange{i, j}));
+                auto init = F32_CONST(0.f);
+                STORE(init, result, (ValueRange{i, j}));  // result[i, j] = 0
                 FOR(k, 0, inDim,  // for (k, 0, data.shape[i])
-                    auto D_ik = LOAD(data, (ValueRange{i, k}));  // data[i, k]
-                    auto W_jk =
-                        LOAD(weight, (ValueRange{j, k}));  // weight[j, k]
+                    auto D_ik = LOAD(data, (ValueRange{i, k}));
+                    auto W_jk = LOAD(weight, (ValueRange{j, k}));
                     auto mul = MULF(D_ik, W_jk);
                     auto prev = LOAD(result, (ValueRange{i, j}));
                     auto add = ADDF(prev, mul);
