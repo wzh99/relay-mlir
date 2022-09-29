@@ -49,6 +49,8 @@ struct LowerCall : public OpRewritePattern<func::CallOp> {
         SmallVector<Value> newResults;
         bool isFuncRet = false;
         for (auto result : op->getResults()) {
+            // Check if the result of this operation is returned by the parent
+            // function
             Value newResult;
             func::ReturnOp retOp;
             int64_t retIdx = -1;
@@ -61,6 +63,8 @@ struct LowerCall : public OpRewritePattern<func::CallOp> {
                     isFuncRet = true;
                 }
             }
+
+            // Collect result buffer or allocate a new one
             if (retOp) {
                 auto func = cast<func::FuncOp>(op->getParentOp());
                 auto numInputs =
@@ -73,6 +77,7 @@ struct LowerCall : public OpRewritePattern<func::CallOp> {
             }
             newResults.push_back(newResult);
         }
+
         auto buffers = llvm::to_vector(op.getOperands());
         buffers.append(newResults);
 
@@ -82,7 +87,7 @@ struct LowerCall : public OpRewritePattern<func::CallOp> {
 
         // Erase or replace previous operations
         if (isFuncRet)
-            rewriter.eraseOp(op);
+            op.erase();
         else
             rewriter.replaceOp(op, newResults);
 
@@ -123,6 +128,17 @@ LogicalResult LowerFunc::matchAndRewrite(func::FuncOp func,
     newFunc->setAttr("num_inputs",
                      rewriter.getI64IntegerAttr(func.getNumArguments()));
 
+    // Find the last use of each intermediate value
+    DenseMap<Value, Operation *> lastUse;
+    for (auto &block : func.getRegion()) {
+        for (auto &op : block) {
+            for (auto arg : op.getOperands())
+                if (lastUse.count(arg)) lastUse[arg] = &op;
+            for (auto result : op.getResults())
+                lastUse.insert({result, nullptr});
+        }
+    }
+
     // Convert operations in the function
     rewriter.setInsertionPointToStart(newFunc.addEntryBlock());
     BlockAndValueMapping mapper;
@@ -131,9 +147,21 @@ LogicalResult LowerFunc::matchAndRewrite(func::FuncOp func,
         mapper.map(tValue, mValue);
     for (auto &block : func.getRegion()) {
         for (auto &op : block) {
+            // Clone operation and set result types
             auto newOp = rewriter.clone(op, mapper);
             for (auto result : newOp->getResults())
                 result.setType(cvtTensorToMemref(result.getType()));
+
+            // Deallocate arguments which is lastly used by this operation
+            if (op.getName().getStringRef() ==
+                func::ReturnOp::getOperationName())
+                continue;
+            for (auto [prevArg, newArg] :
+                 llvm::zip(op.getOperands(), newOp->getOperands())) {
+                if (!lastUse.count(prevArg)) continue;
+                if (lastUse[prevArg] != &op) continue;
+                rewriter.create<memref::DeallocOp>(op.getLoc(), newArg);
+            }
         }
     }
     rewriter.eraseOp(func);
