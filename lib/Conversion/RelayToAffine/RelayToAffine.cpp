@@ -39,8 +39,7 @@ LogicalResult LowerOp<Op>::matchAndRewrite(Op op,
         int64_t retIdx = -1;
         for (auto &use : result.getUses()) {
             auto owner = use.getOwner();
-            if (owner->getName().getStringRef() ==
-                func::ReturnOp::getOperationName()) {
+            if (isa<func::ReturnOp>(owner)) {
                 retOp = cast<func::ReturnOp>(owner);
                 retIdx = use.getOperandNumber();
                 isFuncRet = true;
@@ -62,7 +61,7 @@ LogicalResult LowerOp<Op>::matchAndRewrite(Op op,
         newResults.push_back(newResult);
     }
 
-    auto buffers = llvm::to_vector(op.getOperands());
+    auto buffers = llvm::to_vector(op->getOperands());
     buffers.append(newResults);
 
     // Lower operation with given buffers
@@ -77,32 +76,14 @@ LogicalResult LowerOp<Op>::matchAndRewrite(Op op,
     return success();
 }
 
-struct LowerReLU : public OpRewritePattern<relay::ReLUOp> {
-    LowerReLU(MLIRContext *ctx) : OpRewritePattern(ctx) {}
-
-    LogicalResult matchAndRewrite(relay::ReLUOp op,
-                                  PatternRewriter &rewriter) const override {
-        return success();
-    }
-};
-
-struct LowerBiasAdd : public OpRewritePattern<relay::BiasAddOp> {
-    LowerBiasAdd(MLIRContext *ctx) : OpRewritePattern(ctx) {}
-
-    LogicalResult matchAndRewrite(relay::BiasAddOp op,
-                                  PatternRewriter &rewriter) const override {
-        return success();
-    }
-};
-
-#define FOR(name, low, high, body)                                         \
-    auto name##For = rewriter.create<AffineForOp>(op.getLoc(), low, high); \
-    rewriter.setInsertionPointToStart(name##For.getBody());                \
-    {                                                                      \
-        auto name##Iv = name##For.getInductionVar();                       \
-        body                                                               \
-    }                                                                      \
-    rewriter.setInsertionPoint(name##For.getBody()->getTerminator());
+#define FOR(iv, low, high, body)                                          \
+    auto iv##Loop = rewriter.create<AffineForOp>(op.getLoc(), low, high); \
+    rewriter.setInsertionPointToStart(iv##Loop.getBody());                \
+    {                                                                     \
+        auto iv = iv##Loop.getInductionVar();                             \
+        body                                                              \
+    }                                                                     \
+    rewriter.setInsertionPoint(iv##Loop.getBody()->getTerminator());
 
 #define LOAD(buffer, indices) \
     rewriter.create<AffineLoadOp>(op.getLoc(), buffer, indices).getResult()
@@ -114,12 +95,60 @@ struct LowerBiasAdd : public OpRewritePattern<relay::BiasAddOp> {
     rewriter                                                               \
         .create<arith::ConstantFloatOp>(op.getLoc(), llvm::APFloat(value), \
                                         rewriter.getF32Type())             \
-        .getResult();
+        .getResult()
 
 #define BOP(Op, lhs, rhs) rewriter.create<Op>(op.getLoc(), lhs, rhs).getResult()
 
 #define ADDF(lhs, rhs) BOP(arith::AddFOp, lhs, rhs)
 #define MULF(lhs, rhs) BOP(arith::MulFOp, lhs, rhs)
+#define MAXF(lhs, rhs) BOP(arith::MaxFOp, lhs, rhs)
+
+inline static void genNestedLoops(
+    Value result, PatternRewriter &rewriter,
+    function_ref<void(const SmallVector<Value> &)> body) {
+    auto shape = result.getType().cast<MemRefType>().getShape();
+    SmallVector<Value> ivs;
+    for (auto dim : shape) {
+        auto loop = rewriter.create<AffineForOp>(result.getLoc(), 0, dim);
+        ivs.push_back(loop.getInductionVar());
+        rewriter.setInsertionPointToStart(loop.getBody());
+    }
+    body(ivs);
+}
+
+struct LowerReLU : public LowerOp<relay::ReLUOp> {
+    LowerReLU(MLIRContext *ctx) : LowerOp(ctx) {}
+
+    LogicalResult lower(relay::ReLUOp op, ValueRange buffers,
+                        PatternRewriter &rewriter) const override {
+        auto data = buffers[0], result = buffers[1];
+        genNestedLoops(op.getResult(), rewriter,
+                       [&](const SmallVector<Value> &ivs) {
+                           auto x = LOAD(data, ivs);
+                           auto y = MAXF(x, F32_CONST(0.f));
+                           STORE(y, result, ivs);
+                       });
+        return success();
+    }
+};
+
+struct LowerBiasAdd : public LowerOp<relay::BiasAddOp> {
+    LowerBiasAdd(MLIRContext *ctx) : LowerOp(ctx) {}
+
+    LogicalResult lower(relay::BiasAddOp op, ValueRange buffers,
+                        PatternRewriter &rewriter) const override {
+        auto data = buffers[0], bias = buffers[1], result = buffers[2];
+        auto axis = op.getAxis();
+        genNestedLoops(op.getResult(), rewriter,
+                       [&](const SmallVector<Value> &ivs) {
+                           auto x = LOAD(data, ivs);
+                           auto b = LOAD(bias, (ValueRange{ivs[axis]}));
+                           auto y = ADDF(x, b);
+                           STORE(y, result, ivs);
+                       });
+        return success();
+    }
+};
 
 struct LowerDense : public LowerOp<relay::DenseOp> {
     LowerDense(MLIRContext *ctx) : LowerOp(ctx) {}
@@ -132,22 +161,21 @@ struct LowerDense : public LowerOp<relay::DenseOp> {
         auto batchSize = dataShape[0], inDim = dataShape[1],
              outDim = weightShape[0];
 
-        FOR(batch, 0, batchSize,  // for (i, 0, data.shape[0])
-            FOR(out, 0, outDim,   // for (j, 0, weight.shape[0])
+        FOR(i, 0, batchSize,   // for (i, 0, data.shape[0])
+            FOR(j, 0, outDim,  // for (j, 0, weight.shape[0])
                 auto init = F32_CONST(1.f);
-                STORE(init, result, (ValueRange{batchIv, outIv}));
-                FOR(in, 0, inDim,  // for (k, 0, data.shape[i])
-                    auto D_ik =
-                        LOAD(data, (ValueRange{batchIv, inIv}));  // data[i, k]
-                    auto W_jk = LOAD(
-                        weight, (ValueRange{outIv, inIv}));  // weight[j, k]
+                STORE(init, result, (ValueRange{i, j}));
+                FOR(k, 0, inDim,  // for (k, 0, data.shape[i])
+                    auto D_ik = LOAD(data, (ValueRange{i, k}));  // data[i, k]
+                    auto W_jk =
+                        LOAD(weight, (ValueRange{j, k}));  // weight[j, k]
                     auto mul = MULF(D_ik, W_jk);
-                    auto prev = LOAD(result, (ValueRange{batchIv, outIv}));
+                    auto prev = LOAD(result, (ValueRange{i, j}));
                     auto add = ADDF(prev, mul);
                     // result[i, j] += data[i, k] * weight[j, k]
-                    STORE(add, result, (ValueRange{batchIv, outIv}));)  // end k
-                )                                                       // end j
-            )                                                           // end i
+                    STORE(add, result, (ValueRange{i, j}));)  // end k
+                )                                             // end j
+            )                                                 // end i
 
         return success();
     }
@@ -184,7 +212,6 @@ struct LowerFunc : public OpRewritePattern<func::FuncOp> {
 LogicalResult LowerFunc::matchAndRewrite(func::FuncOp func,
                                          PatternRewriter &rewriter) const {
     // Convert function prototype
-    Debug("{}", func.getName());
     auto inTypes = llvm::to_vector(
         llvm::map_range(func.getArgumentTypes(), cvtTensorToMemref));
     inTypes.append(llvm::to_vector(
@@ -222,9 +249,7 @@ LogicalResult LowerFunc::matchAndRewrite(func::FuncOp func,
                 result.setType(cvtTensorToMemref(result.getType()));
 
             // Deallocate arguments which are lastly used by this operation
-            if (op.getName().getStringRef() ==
-                func::ReturnOp::getOperationName())
-                continue;
+            if (isa<func::ReturnOp>(op)) continue;
             for (auto [prevArg, newArg] :
                  llvm::zip(op.getOperands(), newOp->getOperands())) {
                 if (!lastUse.count(prevArg)) continue;
