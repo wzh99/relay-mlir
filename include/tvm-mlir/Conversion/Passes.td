@@ -6,8 +6,7 @@ include "mlir/Pass/PassBase.td"
 def RelayToAffine : Pass<"relay-to-affine", "ModuleOp"> {
     let summary = "Lower Relay to Affine.";
     let description = [{
-    Pass that converts Relay operations to the implementation with the low-level 
-    operations in Affine dialect.
+    Convert Relay operations to low-level implementation in Affine dialect.
     }];
 
     let constructor = "createRelayToAffine()";
@@ -17,6 +16,23 @@ def RelayToAffine : Pass<"relay-to-affine", "ModuleOp"> {
         "AffineDialect",
         "memref::MemRefDialect",
         "arith::ArithmeticDialect"
+    ];
+}
+
+def AffineToLLVM : Pass<"affine-to-llvm", "ModuleOp"> {
+    let summary = "Lower Affine to LLVM.";
+    let description = [{
+    Lower implementation in Affine dialect to LLVM IR.
+    }];
+
+    let constructor = "createAffineToLLVM()";
+    let dependentDialects = [
+        "func::FuncDialect",
+        "relay::RelayDialect",
+        "AffineDialect",
+        "memref::MemRefDialect",
+        "arith::ArithmeticDialect",
+        "LLVM::LLVMDialect"
     ];
 }
 

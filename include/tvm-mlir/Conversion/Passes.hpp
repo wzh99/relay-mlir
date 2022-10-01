@@ -1,9 +1,12 @@
 #pragma once
 
 #include "mlir/Pass/Pass.h"
-#include "RelayToAffine.hpp"
 
 namespace mlir {
+
+std::unique_ptr<Pass> createRelayToAffine();
+
+std::unique_ptr<Pass> createAffineToLLVM();
 
 #define GEN_PASS_REGISTRATION
 #include "tvm-mlir/Conversion/Passes.h.inc"

@@ -1,8 +1,11 @@
-#include "tvm-mlir/Conversion/RelayToAffine.hpp"
-
-#include "../PassDetail.hpp"
+#include "PassDetail.hpp"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "tvm-mlir/Conversion/Passes.hpp"
 #include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
 #include "tvm-mlir/Support/Common.hpp"
 
@@ -54,9 +57,9 @@ LogicalResult LowerOp<Op>::matchAndRewrite(Op op,
                     .getInt();
             newResult = func.getArgument(numInputs + retIdx);
         } else {
-            auto alloca = rewriter.create<memref::AllocaOp>(
+            auto alloc = rewriter.create<memref::AllocOp>(
                 op.getLoc(), result.getType().template cast<MemRefType>());
-            newResult = alloca.getResult();
+            newResult = alloc.getResult();
         }
         newResults.push_back(newResult);
     }
