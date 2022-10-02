@@ -71,10 +71,7 @@ LogicalResult LowerOp<Op>::matchAndRewrite(Op op,
     if (this->lower(op, buffers, rewriter).failed()) return failure();
 
     // Erase or replace previous operations
-    if (isFuncRet)
-        op.erase();
-    else
-        rewriter.replaceOp(op, newResults);
+    if (!isFuncRet) rewriter.replaceOp(op, newResults);
 
     return success();
 }
@@ -199,6 +196,8 @@ struct EraseReturnValue : public OpRewritePattern<func::ReturnOp> {
 
     LogicalResult matchAndRewrite(func::ReturnOp op,
                                   PatternRewriter &rewriter) const override {
+        for (auto value : op.getOperands())
+            rewriter.eraseOp(value.getDefiningOp());
         rewriter.replaceOpWithNewOp<func::ReturnOp>(op, llvm::None);
         return success();
     }
