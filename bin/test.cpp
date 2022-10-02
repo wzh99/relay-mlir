@@ -1,4 +1,3 @@
-#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
@@ -19,6 +18,7 @@
 #include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
 #include "tvm-mlir/Frontend/RelayImporter.hpp"
 #include "tvm-mlir/Support/Common.hpp"
+#include "tvm-mlir/Support/MemRef.hpp"
 #include "tvm/ir/module.h"
 
 using namespace mlir;
@@ -99,4 +99,19 @@ int main(int argc, char const *argv[]) {
     auto &engine = expectEngine.get();
     auto expectPacked = engine->lookupPacked("main");
     if (!expectPacked) Fatal("Cannot find main function");
+
+    // Run JIT
+    float data[6]{1.f, 0.f, -1.f, 0.f, 2.f, -2.f};
+    auto bufType = MemRefType::get({2, 3}, Float32Type::get(&mlirCtx));
+    MemRef inBuf(bufType), outBuf(bufType);
+    inBuf.LoadData(data);
+    SmallVector<void *> jitArgs;
+    inBuf.PopulateLLJITArgs(jitArgs);
+    outBuf.PopulateLLJITArgs(jitArgs);
+    if (auto err = engine->invokePacked("main", jitArgs))
+        Fatal("Cannot invoke main function");
+    auto result = outBuf.GetDataAs<float>();
+    std::vector<float> resultVec(result, result + 6);
+
+    return 0;
 }
