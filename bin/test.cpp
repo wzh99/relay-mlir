@@ -29,6 +29,10 @@ namespace fs = llvm::sys::fs;
 static auto inputPath = cl::opt<std::string>(cl::Positional);
 static auto outputDir = cl::opt<std::string>(cl::Positional);
 
+static bool shouldPrint(Pass *pass, Operation *op) {
+    return isa<ModuleOp>(op) || cast<func::FuncOp>(op).getSymName() == "main";
+}
+
 int main(int argc, char const *argv[]) {
     // Parse command line arguments
     cl::ParseCommandLineOptions(argc, argv, "TVM-MLIR Sample Program");
@@ -37,6 +41,14 @@ int main(int argc, char const *argv[]) {
     MLIRContext mlirCtx;
     mlirCtx
         .loadDialect<relay::RelayDialect, func::FuncDialect, scf::SCFDialect>();
+    mlirCtx.disableMultithreading();
+
+    // Configure pass manager
+    PassManager pm(&mlirCtx, PassManager::Nesting::Implicit);
+    pm.addPass(relay::createShapeInference());
+    pm.addPass(relay::createOpFusion());
+    pm.addPass(createRelayToAffine());
+    pm.addPass(createAffineToLLVM());
 
     // Parse Relay source
     auto fileOrErr = llvm::MemoryBuffer::getFile(inputPath, true);
@@ -45,31 +57,22 @@ int main(int argc, char const *argv[]) {
     auto buffer = fileOrErr->get()->getBuffer().str();
     auto irmod = tvm::IRModule::FromText(buffer, inputPath);
 
-    // Import and compile
-    auto mlirMod = relay::ImportRelay(irmod, inputPath, mlirCtx);
-    PassManager pm(&mlirCtx, PassManager::Nesting::Implicit);
-    pm.addPass(relay::createShapeInference());
-    pm.addPass(relay::createOpFusion());
-    pm.addPass(createRelayToAffine());
-    pm.addPass(createAffineToLLVM());
-    pm.run(mlirMod).succeeded();
-
-    // Create output filename
+    // Create file to dump IR
     auto inputFilename = path::filename(inputPath);
     SmallVector<char> outFilename(inputFilename.begin(), inputFilename.end());
     path::replace_extension(outFilename, "mlir");
     SmallVector<char> outPathBuf(outputDir.begin(), outputDir.end());
     path::append(outPathBuf, outFilename);
+    StringRef outputPath(outPathBuf.data(), outPathBuf.size());
+    std::error_code err;
+    llvm::raw_fd_ostream outStream(outputPath, err);
+    if (err) Fatal("Cannot write to file {}: {}", outputPath, err.message());
+    pm.enableIRPrinting([](Pass *, Operation *) { return false; }, shouldPrint,
+                        true, false, false, outStream);
 
-    // Write MLIR to file
-    {
-        StringRef outputPath(outPathBuf.data(), outPathBuf.size());
-        std::error_code err;
-        llvm::raw_fd_ostream outStream(outputPath, err);
-        if (err)
-            Fatal("Cannot write to file {}: {}", outputPath, err.message());
-        mlirMod.print(outStream);
-    }
+    // Import and compile
+    auto mlirMod = relay::ImportRelay(irmod, inputPath, mlirCtx);
+    if (pm.run(mlirMod).failed()) Fatal("Failed to run passes");
 
     // Export to LLVM
     registerLLVMDialectTranslation(mlirCtx);
@@ -91,27 +94,6 @@ int main(int argc, char const *argv[]) {
             Fatal("Cannot write to file {}: {}", outputPath, err.message());
         llvmMod->print(outStream, nullptr);
     }
-
-    // Set up LLVM JIT
-    ExecutionEngineOptions engineOpts{.transformer = optPpl};
-    auto expectEngine = ExecutionEngine::create(mlirMod, engineOpts);
-    if (!expectEngine) Fatal("Cannot create execution engine");
-    auto &engine = expectEngine.get();
-    auto expectPacked = engine->lookupPacked("main");
-    if (!expectPacked) Fatal("Cannot find main function");
-
-    // Run JIT
-    float data[6]{1.f, 0.f, -1.f, 0.f, 2.f, -2.f};
-    auto bufType = MemRefType::get({2, 3}, Float32Type::get(&mlirCtx));
-    MemRef inBuf(bufType), outBuf(bufType);
-    inBuf.LoadData(data);
-    SmallVector<void *> jitArgs;
-    inBuf.PopulateLLJITArgs(jitArgs);
-    outBuf.PopulateLLJITArgs(jitArgs);
-    if (auto err = engine->invokePacked("main", jitArgs))
-        Fatal("Cannot invoke main function");
-    auto result = outBuf.GetDataAs<float>();
-    std::vector<float> resultVec(result, result + 6);
 
     return 0;
 }
