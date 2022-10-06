@@ -11,6 +11,8 @@
 
 namespace mlir {
 
+namespace {
+
 inline static Type cvtTensorToMemref(Type type) {
     auto tt = type.cast<TensorType>();
     return MemRefType::get(tt.getShape(), tt.getElementType());
@@ -295,6 +297,8 @@ void RelayToAffine::runOnOperation() {
             .failed())
         signalPassFailure();
 }
+
+}  // namespace
 
 std::unique_ptr<Pass> createRelayToAffine() {
     return std::make_unique<RelayToAffine>();

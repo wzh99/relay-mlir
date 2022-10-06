@@ -17,6 +17,8 @@
 
 namespace mlir {
 
+namespace {
+
 class AffineToLLVM : public AffineToLLVMBase<AffineToLLVM> {
     void runOnOperation() override;
 };
@@ -42,6 +44,8 @@ void AffineToLLVM::runOnOperation() {
             .failed())
         signalPassFailure();
 }
+
+}  // namespace
 
 std::unique_ptr<Pass> createAffineToLLVM() {
     return std::make_unique<AffineToLLVM>();

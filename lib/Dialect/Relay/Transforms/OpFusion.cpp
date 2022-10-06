@@ -184,9 +184,8 @@ void OpFusion::runOnOperation() {
     // Create nested function for each group
     RewritePatternSet patterns(ctx);
     patterns.add<OpFusionPattern>(ctx, groups, opGrpIdx);
-    FrozenRewritePatternSet frozenPat(std::move(patterns));
     GreedyRewriteConfig config{.useTopDownTraversal = true, .maxIterations = 0};
-    applyPatternsAndFoldGreedily(mainFn, frozenPat, std::move(config))
+    applyPatternsAndFoldGreedily(mainFn, std::move(patterns), std::move(config))
         .succeeded();
 }
 
