@@ -19,6 +19,7 @@
 #include "tvm-mlir/Frontend/RelayImporter.hpp"
 #include "tvm-mlir/Support/Common.hpp"
 #include "tvm-mlir/Support/MemRef.hpp"
+#include "tvm-mlir/Transforms/Passes.hpp"
 #include "tvm/ir/module.h"
 
 using namespace mlir;
@@ -28,6 +29,14 @@ namespace fs = llvm::sys::fs;
 
 static auto inputPath = cl::opt<std::string>(cl::Positional);
 static auto outputDir = cl::opt<std::string>(cl::Positional);
+
+static void populatePasses(PassManager &pm) {
+    pm.addPass(relay::createShapeInference());
+    pm.addPass(relay::createOpFusion());
+    pm.addPass(createRelayToAffine());
+    pm.addPass(createOptimizeAffine());
+    pm.addPass(createAffineToLLVM());
+}
 
 static bool shouldPrint(Pass *pass, Operation *op) {
     return isa<ModuleOp>(op) || cast<func::FuncOp>(op).getSymName() == "main";
@@ -45,10 +54,7 @@ int main(int argc, char const *argv[]) {
 
     // Configure pass manager
     PassManager pm(&mlirCtx, PassManager::Nesting::Implicit);
-    pm.addPass(relay::createShapeInference());
-    pm.addPass(relay::createOpFusion());
-    pm.addPass(createRelayToAffine());
-    pm.addPass(createAffineToLLVM());
+    populatePasses(pm);
 
     // Parse Relay source
     auto fileOrErr = llvm::MemoryBuffer::getFile(inputPath, true);
