@@ -12,6 +12,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
+#include "mlir/Transforms/Passes.h"
 #include "tvm-mlir/Conversion/Passes.hpp"
 #include "tvm-mlir/Dialect/Relay/Passes.hpp"
 #include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
@@ -35,6 +36,7 @@ static void populatePasses(PassManager &pm) {
     pm.addPass(relay::createOpFusion());
     pm.addPass(createRelayToAffine());
     pm.addPass(createOptimizeAffine());
+    pm.addPass(createCanonicalizerPass());
     pm.addPass(createAffineToLLVM());
 }
 
