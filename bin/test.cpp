@@ -1,5 +1,6 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
@@ -48,6 +49,8 @@ static bool printModuleOnce(Pass *pass, Operation *op) {
 
 int main(int argc, char const *argv[]) {
     // Parse command line arguments
+    llvm::DebugFlag = true;
+    llvm::setCurrentDebugType("dialect-conversion");
     cl::ParseCommandLineOptions(argc, argv, "TVM-MLIR Sample Program");
 
     // Initialize MLIR context
