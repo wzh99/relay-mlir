@@ -5,6 +5,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "tvm-mlir/Conversion/Passes.hpp"
 #include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
 #include "tvm-mlir/Support/Common.hpp"
@@ -72,8 +73,11 @@ LogicalResult LowerOp<Op>::matchAndRewrite(Op op,
     // Lower operation with given buffers
     if (this->lower(op, buffers, rewriter).failed()) return failure();
 
-    // Erase or replace previous operations
-    if (!isFuncRet) rewriter.replaceOp(op, newResults);
+    // Erase or replace previous operation
+    if (!isFuncRet)
+        rewriter.replaceOp(op, newResults);
+    else
+        rewriter.eraseOp(op);
 
     return success();
 }
@@ -187,8 +191,9 @@ struct LowerCall : public LowerOp<func::CallOp> {
 
     LogicalResult lower(func::CallOp op, ValueRange buffers,
                         PatternRewriter &rewriter) const override {
-        rewriter.create<func::CallOp>(op.getLoc(), op.getCallee(), llvm::None,
-                                      buffers);
+        rewriter.create<func::CallOp>(
+            op.getLoc(), rewriter.getStringAttr(op.getCallee() + "_lowered"),
+            llvm::None, buffers);
         return success();
     }
 };
@@ -198,8 +203,6 @@ struct EraseReturnValue : public OpRewritePattern<func::ReturnOp> {
 
     LogicalResult matchAndRewrite(func::ReturnOp op,
                                   PatternRewriter &rewriter) const override {
-        for (auto value : op.getOperands())
-            rewriter.eraseOp(value.getDefiningOp());
         rewriter.replaceOpWithNewOp<func::ReturnOp>(op, llvm::None);
         return success();
     }
@@ -215,13 +218,17 @@ struct LowerFunc : public OpRewritePattern<func::FuncOp> {
 LogicalResult LowerFunc::matchAndRewrite(func::FuncOp func,
                                          PatternRewriter &rewriter) const {
     // Convert function prototype
-    auto inTypes = llvm::to_vector(
+    auto isMain = func.getName() == "main";
+    auto inBufTypes = llvm::to_vector(
         llvm::map_range(func.getArgumentTypes(), cvtTensorToMemref));
-    inTypes.append(llvm::to_vector(
-        llvm::map_range(func.getResultTypes(), cvtTensorToMemref)));
+    auto outBufTypes = llvm::to_vector(
+        llvm::map_range(func.getResultTypes(), cvtTensorToMemref));
+    auto bufTypes =
+        llvm::to_vector(llvm::concat<Type>(inBufTypes, outBufTypes));
+    auto newName = isMain ? func.getName() : func.getName() + "_lowered";
     auto newFunc = rewriter.create<func::FuncOp>(
-        func.getLoc(), func.getName(),
-        rewriter.getFunctionType(inTypes, llvm::None));
+        func.getLoc(), rewriter.getStringAttr(newName),
+        rewriter.getFunctionType(bufTypes, llvm::None));
     if (func->hasAttrOfType<BoolAttr>("primitive"))
         newFunc->setAttr("primitive", rewriter.getBoolAttr(true));
     newFunc->setAttr("num_inputs",
@@ -261,10 +268,32 @@ LogicalResult LowerFunc::matchAndRewrite(func::FuncOp func,
             }
         }
     }
-    rewriter.eraseOp(func);
+
+    // Replace original function
+    if (isMain)
+        rewriter.replaceOp(func, newFunc->getResults());
+    else {
+        rewriter.setInsertionPointAfter(func);
+        rewriter.create<func::FuncOp>(
+            func.getLoc(), func.getName(),
+            rewriter.getFunctionType(inBufTypes, outBufTypes),
+            rewriter.getStringAttr("private"));  // dummy function symbol
+        rewriter.eraseOp(func);
+    }
 
     return success();
 }
+
+struct EraseDummyFunc : public OpRewritePattern<func::FuncOp> {
+    EraseDummyFunc(MLIRContext *ctx) : OpRewritePattern(ctx) {}
+
+    LogicalResult matchAndRewrite(func::FuncOp func,
+                                  PatternRewriter &rewriter) const override {
+        if (func.getVisibility() == SymbolTable::Visibility::Private)
+            rewriter.eraseOp(func);
+        return success();
+    }
+};
 
 class RelayToAffine : public RelayToAffineBase<RelayToAffine> {
     void runOnOperation() override;
@@ -282,20 +311,27 @@ void RelayToAffine::runOnOperation() {
                              [](Type type) { return type.isa<TensorType>(); });
     });
     target.addDynamicallyLegalOp<func::CallOp>(
-        [](func::CallOp op) { return op.getNumResults() == 0; });
+        [](func::CallOp op) { return op->getNumResults() == 0; });
     target.addDynamicallyLegalOp<func::ReturnOp>(
         [](func::ReturnOp op) { return op.getNumOperands() == 0; });
 
-    // Add rewrite patterns
+    // Add rewrite patterns and apply conversion
+    auto mod = getOperation();
     auto ctx = &getContext();
-    RewritePatternSet patterns(ctx);
-    patterns.add<LowerFunc, LowerReLU, LowerBiasAdd, LowerDense, LowerCall,
-                 EraseReturnValue>(ctx);
-
-    // Apply conversion
-    if (applyPartialConversion(getOperation(), target, std::move(patterns))
-            .failed())
-        signalPassFailure();
+    {
+        RewritePatternSet patterns(ctx);
+        patterns.add<LowerFunc, LowerReLU, LowerBiasAdd, LowerDense, LowerCall,
+                     EraseReturnValue>(ctx);
+        if (applyPartialConversion(mod, target, std::move(patterns)).failed())
+            signalPassFailure();
+    }
+    {
+        RewritePatternSet patterns(ctx);
+        patterns.add<EraseDummyFunc>(ctx);
+        auto funcs = llvm::to_vector(
+            llvm::map_range(mod.getOps(), [](auto &op) { return &op; }));
+        applyOpPatternsAndFold(funcs, std::move(patterns), true);
+    }
 }
 
 }  // namespace

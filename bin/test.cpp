@@ -40,7 +40,9 @@ static void populatePasses(PassManager &pm) {
     pm.addPass(createAffineToLLVM());
 }
 
-static bool shouldPrint(Pass *pass, Operation *op) {
+static bool printNone(Pass *, Operation *) { return false; }
+
+static bool printModuleOnce(Pass *pass, Operation *op) {
     return isa<ModuleOp>(op) || cast<func::FuncOp>(op).getSymName() == "main";
 }
 
@@ -53,6 +55,7 @@ int main(int argc, char const *argv[]) {
     mlirCtx
         .loadDialect<relay::RelayDialect, func::FuncDialect, scf::SCFDialect>();
     mlirCtx.disableMultithreading();
+    mlirCtx.printOpOnDiagnostic(true);
 
     // Configure pass manager
     PassManager pm(&mlirCtx, PassManager::Nesting::Implicit);
@@ -75,8 +78,8 @@ int main(int argc, char const *argv[]) {
     std::error_code err;
     llvm::raw_fd_ostream outStream(outputPath, err);
     if (err) Fatal("Cannot write to file {}: {}", outputPath, err.message());
-    pm.enableIRPrinting([](Pass *, Operation *) { return false; }, shouldPrint,
-                        true, false, false, outStream);
+    pm.enableIRPrinting(printNone, printModuleOnce, true, false, false,
+                        outStream);
 
     // Import and compile
     auto mlirMod = relay::ImportRelay(irmod, inputPath, mlirCtx);
