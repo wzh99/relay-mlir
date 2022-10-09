@@ -8,6 +8,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/Dominance.h"
 #include "mlir/Transforms/FoldUtils.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "tvm-mlir/Support/Common.hpp"
@@ -108,9 +109,13 @@ LogicalResult ParallelizeLoop::matchAndRewrite(
     // Skip if this loop is nested in another loop
     if (!isa<func::FuncOp>(root->getParentOp())) return failure();
 
-    // Get all perfectly nested loops
+    // Get all perfectly-nested, non-reduction loops
     SmallVector<AffineForOp> nestedLoops;
     getPerfectlyNestedLoops(nestedLoops, root);
+    if (llvm::any_of(nestedLoops, [](AffineForOp op) {
+            return op.getNumIterOperands() != 0;
+        }))
+        return failure();
 
     // Initialize parallel operation
     auto lbMaps = llvm::to_vector(llvm::map_range(
@@ -153,8 +158,11 @@ class OptimizeAffine : public OptimizeAffineBase<OptimizeAffine> {
 };
 
 void OptimizeAffine::runOnOperation() {
+    // Get module and context
     auto mod = getOperation();
     auto ctx = &getContext();
+
+    // Fuse consequent loops
     {
         RewritePatternSet patterns(ctx);
         patterns.add<FuseLoop>(ctx);
@@ -162,6 +170,14 @@ void OptimizeAffine::runOnOperation() {
             llvm::map_range(mod.getOps(), [](auto &op) { return &op; }));
         applyOpPatternsAndFold(funcs, std::move(patterns), true);
     }
+
+    // Eliminate redundant load/store
+    auto &domInfo = getAnalysis<DominanceInfo>();
+    auto &postDomInfo = getAnalysis<PostDominanceInfo>();
+    for (auto &op : mod.getOps())
+        affineScalarReplace(cast<func::FuncOp>(&op), domInfo, postDomInfo);
+
+    // Parallelize loops
     {
         RewritePatternSet patterns(ctx);
         patterns.add<ParallelizeLoop>(ctx);

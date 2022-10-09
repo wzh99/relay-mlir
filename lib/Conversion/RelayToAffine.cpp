@@ -90,7 +90,7 @@ LogicalResult LowerOp<Op>::matchAndRewrite(Op op,
         auto iv = iv##Loop.getInductionVar();                             \
         body                                                              \
     }                                                                     \
-    rewriter.setInsertionPoint(iv##Loop.getBody()->getTerminator());
+    rewriter.setInsertionPointAfter(iv##Loop);
 
 #define LOAD(buffer, indices) \
     rewriter.create<AffineLoadOp>(op.getLoc(), buffer, indices).getResult()
@@ -168,20 +168,24 @@ struct LowerDense : public LowerOp<relay::DenseOp> {
         auto batchSize = dataShape[0], inDim = dataShape[1],
              outDim = weightShape[0];
 
-        FOR(i, 0, batchSize,   // for (i, 0, data.shape[0])
-            FOR(j, 0, outDim,  // for (j, 0, weight.shape[0])
-                auto init = F32_CONST(0.f);
-                STORE(init, result, (ValueRange{i, j}));  // result[i, j] = 0
-                FOR(k, 0, inDim,  // for (k, 0, data.shape[i])
+        FOR(i, 0, batchSize,  // for (i, 0, data.shape[0])
+            FOR(
+                j, 0, outDim,  // for (j, 0, weight.shape[0])
+                auto kLoop = rewriter.create<AffineForOp>(
+                    op.getLoc(), 0, inDim, 1, ValueRange{F32_CONST(0.f)});
+                rewriter.setInsertionPointToStart(kLoop.getBody()); {
+                    auto k = kLoop.getInductionVar();
                     auto D_ik = LOAD(data, (ValueRange{i, k}));
                     auto W_jk = LOAD(weight, (ValueRange{j, k}));
                     auto mul = MULF(D_ik, W_jk);
-                    auto prev = LOAD(result, (ValueRange{i, j}));
+                    auto prev = kLoop.getRegionIterArgs()[0];
                     auto add = ADDF(prev, mul);
-                    // result[i, j] += data[i, k] * weight[j, k]
-                    STORE(add, result, (ValueRange{i, j}));)  // end k
-                )                                             // end j
-            )                                                 // end i
+                    rewriter.create<AffineYieldOp>(op.getLoc(),
+                                                   ValueRange{add});
+                } rewriter.setInsertionPointAfter(kLoop);
+                STORE(kLoop->getResult(0), result,
+                      (ValueRange{i, j}));)  // end j
+            )                                // end i
 
         return success();
     }
