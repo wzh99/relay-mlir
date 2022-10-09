@@ -18,9 +18,10 @@ add_mlir_conversion_library(TVMMLIRConversion
     MLIRLLVMDialect
     MLIRArithmeticTransforms
     MLIRAffineToStandard
+    MLIRSCFToControlFlow
     MLIRControlFlowToLLVM
     MLIRFuncToLLVM
     MLIRMemRefToLLVM
     MLIROpenMPToLLVM
-    MLIRSCFToControlFlow
+    MLIRVectorToLLVM
     )

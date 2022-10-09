@@ -11,6 +11,10 @@ namespace mlir {
 
 class AffineToSCF : public AffineToSCFBase<AffineToSCF> {
     void runOnOperation() override;
+
+    void getDependentDialects(DialectRegistry &registry) const override {
+        registry.insert<scf::SCFDialect>();
+    }
 };
 
 void AffineToSCF::runOnOperation() {

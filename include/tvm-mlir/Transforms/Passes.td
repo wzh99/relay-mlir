@@ -10,12 +10,6 @@ def OptimizeAffine : Pass<"optimize-affine", "ModuleOp"> {
     }];
 
     let constructor = "createOptimizeAffine()";
-    let dependentDialects = [
-        "func::FuncDialect",
-        "AffineDialect",
-        "memref::MemRefDialect",
-        "arith::ArithmeticDialect"
-    ];
 }
 
 #endif // TVM_MLIR_TRANSFORMS_PASSES

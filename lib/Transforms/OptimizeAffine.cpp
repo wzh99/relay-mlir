@@ -7,6 +7,7 @@
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/Dominance.h"
 #include "mlir/Transforms/FoldUtils.h"
@@ -153,8 +154,39 @@ LogicalResult ParallelizeLoop::matchAndRewrite(
     return success();
 }
 
+struct VectorizeLoop : public OpRewritePattern<func::FuncOp> {
+    VectorizeLoop(MLIRContext *ctx) : OpRewritePattern(ctx) {}
+
+    LogicalResult matchAndRewrite(func::FuncOp func,
+                                  PatternRewriter &rewriter) const override;
+};
+
+LogicalResult VectorizeLoop::matchAndRewrite(func::FuncOp func,
+                                             PatternRewriter &rewriter) const {
+    // Collect loops
+    DenseSet<Operation *> loops;
+    ReductionLoopMap reduceLoops;
+    func.walk([&](AffineForOp forOp) {
+        SmallVector<LoopReduction, 2> reductions;
+        if (!isLoopParallel(forOp, &reductions)) return;
+        loops.insert(forOp);
+        if (!reductions.empty()) reduceLoops.insert({forOp, reductions});
+    });
+
+    // Perform vectorization
+    if (loops.empty()) return failure();
+    rewriter.updateRootInPlace(func, [&]() {
+        vectorizeAffineLoops(func, loops, {8}, {}, reduceLoops);
+    });
+    return success();
+}
+
 class OptimizeAffine : public OptimizeAffineBase<OptimizeAffine> {
     void runOnOperation() override;
+
+    void getDependentDialects(DialectRegistry &registry) const override {
+        registry.insert<AffineDialect, vector::VectorDialect>();
+    }
 };
 
 void OptimizeAffine::runOnOperation() {
@@ -187,6 +219,14 @@ void OptimizeAffine::runOnOperation() {
                                          std::move(config))
                 .failed())
             signalPassFailure();
+    }
+
+    {
+        RewritePatternSet patterns(ctx);
+        patterns.add<VectorizeLoop>(ctx);
+        auto funcs = llvm::to_vector(
+            llvm::map_range(mod.getOps(), [](auto &op) { return &op; }));
+        applyOpPatternsAndFold(funcs, std::move(patterns), true);
     }
 }
 

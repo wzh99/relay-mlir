@@ -6,6 +6,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TargetSelect.h"
 #include "mlir/Conversion/SCFToOpenMP/SCFToOpenMP.h"
+#include "mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -59,10 +60,8 @@ int main(int argc, char const *argv[]) {
 
     // Initialize MLIR context
     MLIRContext mlirCtx;
-    mlirCtx.loadDialect<relay::RelayDialect, func::FuncDialect, scf::SCFDialect,
-                        LLVM::LLVMDialect>();
+    mlirCtx.loadDialect<relay::RelayDialect, func::FuncDialect>();
     mlirCtx.disableMultithreading();
-    mlirCtx.printOpOnDiagnostic(true);
 
     // Configure pass manager
     PassManager pm(&mlirCtx, PassManager::Nesting::Implicit);
