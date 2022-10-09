@@ -7,6 +7,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "tvm-mlir/Conversion/Passes.hpp"
+#include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
 #include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
 #include "tvm-mlir/Support/Common.hpp"
 

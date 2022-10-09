@@ -10,30 +10,24 @@ def RelayToAffine : Pass<"relay-to-affine", "ModuleOp"> {
     }];
 
     let constructor = "createRelayToAffine()";
-    let dependentDialects = [
-        "func::FuncDialect",
-        "relay::RelayDialect",
-        "AffineDialect",
-        "memref::MemRefDialect",
-        "arith::ArithmeticDialect"
-    ];
 }
 
-def AffineToLLVM : Pass<"affine-to-llvm", "ModuleOp"> {
-    let summary = "Lower Affine to LLVM.";
+def AffineToSCF : Pass<"affine-to-scf", "ModuleOp"> {
+    let summary = "Lower Affine to SCF.";
     let description = [{
-    Lower implementation in Affine dialect to LLVM IR.
+    Lower loops in Affine dialect to SCF dialect.
     }];
 
-    let constructor = "createAffineToLLVM()";
-    let dependentDialects = [
-        "func::FuncDialect",
-        "relay::RelayDialect",
-        "AffineDialect",
-        "memref::MemRefDialect",
-        "arith::ArithmeticDialect",
-        "LLVM::LLVMDialect"
-    ];
+    let constructor = "createAffineToSCF()";
+}
+
+def SCFToLLVM : Pass<"scf-to-llvm", "ModuleOp"> {
+    let summary = "Lower SCF to LLVM.";
+    let description = [{
+    Lower loops in SCF dialect to LLVM IR.
+    }];
+
+    let constructor = "createSCFToLLVM()";
 }
 
 #endif // TVM_MLIR_CONVERSION_PASSES

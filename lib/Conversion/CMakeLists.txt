@@ -1,6 +1,7 @@
 add_mlir_conversion_library(TVMMLIRConversion
     RelayToAffine.cpp
-    AffineToLLVM.cpp
+    AffineToSCF.cpp
+    SCFToLLVM.cpp
 
     DEPENDS
     TVMMLIRConversionPassIncGen
@@ -20,5 +21,6 @@ add_mlir_conversion_library(TVMMLIRConversion
     MLIRControlFlowToLLVM
     MLIRFuncToLLVM
     MLIRMemRefToLLVM
+    MLIROpenMPToLLVM
     MLIRSCFToControlFlow
     )

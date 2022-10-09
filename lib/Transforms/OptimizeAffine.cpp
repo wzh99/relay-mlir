@@ -17,8 +17,8 @@ namespace mlir {
 
 namespace {
 
-struct FuseAffine : public OpRewritePattern<func::FuncOp> {
-    FuseAffine(MLIRContext *ctx) : OpRewritePattern(ctx) {}
+struct FuseLoop : public OpRewritePattern<func::FuncOp> {
+    FuseLoop(MLIRContext *ctx) : OpRewritePattern(ctx) {}
 
     LogicalResult matchAndRewrite(func::FuncOp func,
                                   PatternRewriter &rewriter) const override;
@@ -30,8 +30,8 @@ inline static uint32_t getPerfectlyNestedDepth(AffineForOp root) {
     return loops.size();
 }
 
-LogicalResult FuseAffine::matchAndRewrite(func::FuncOp func,
-                                          PatternRewriter &rewriter) const {
+LogicalResult FuseLoop::matchAndRewrite(func::FuncOp func,
+                                        PatternRewriter &rewriter) const {
     // Skip non-primitive function
     if (!func->hasAttrOfType<BoolAttr>("primitive")) return failure();
 
@@ -92,7 +92,59 @@ LogicalResult FuseAffine::matchAndRewrite(func::FuncOp func,
         rewriter.eraseOp(srcFor);
         forOps.erase(forOps.begin() + forIdx + 1);
     }
-    
+
+    return success();
+}
+
+struct ParallelizeLoop : public OpRewritePattern<AffineForOp> {
+    ParallelizeLoop(MLIRContext *ctx) : OpRewritePattern(ctx) {}
+
+    LogicalResult matchAndRewrite(AffineForOp forOp,
+                                  PatternRewriter &rewriter) const override;
+};
+
+LogicalResult ParallelizeLoop::matchAndRewrite(
+    AffineForOp root, PatternRewriter &rewriter) const {
+    // Skip if this loop is nested in another loop
+    if (!isa<func::FuncOp>(root->getParentOp())) return failure();
+
+    // Get all perfectly nested loops
+    SmallVector<AffineForOp> nestedLoops;
+    getPerfectlyNestedLoops(nestedLoops, root);
+
+    // Initialize parallel operation
+    auto lbMaps = llvm::to_vector(llvm::map_range(
+        nestedLoops, std::mem_fn(&AffineForOp::getLowerBoundMap)));
+    auto ubMaps = llvm::to_vector(llvm::map_range(
+        nestedLoops, std::mem_fn(&AffineForOp::getUpperBoundMap)));
+    SmallVector<Value> lbArgs, ubArgs;
+    for (auto forOp : nestedLoops) {
+        auto lbs = forOp.getLowerBoundOperands(),
+             ubs = forOp.getUpperBoundOperands();
+        lbArgs.append(lbs.begin(), lbs.end());
+        ubArgs.append(ubs.begin(), ubs.end());
+    }
+    auto steps = llvm::to_vector(
+        llvm::map_range(nestedLoops, std::mem_fn(&AffineForOp::getStep)));
+    auto parOp = rewriter.create<AffineParallelOp>(root.getLoc(), llvm::None,
+                                                   llvm::None, lbMaps, lbArgs,
+                                                   ubMaps, ubArgs, steps);
+
+    // Clone body from innermost loop
+    BlockAndValueMapping mapper;
+    auto forIvs = llvm::map_range(nestedLoops,
+                                  std::mem_fn(&AffineForOp::getInductionVar));
+    for (auto [forIv, parIv] :
+         llvm::zip(forIvs, parOp.getBody()->getArguments()))
+        mapper.map(forIv, parIv);
+    auto innerForOp = nestedLoops.back();
+    rewriter.setInsertionPointToStart(parOp.getBody());
+    for (auto &op : *innerForOp.getBody()) {
+        if (&op != innerForOp.getBody()->getTerminator())
+            rewriter.clone(op, mapper);
+    }
+    rewriter.replaceOp(root, parOp.getResults());
+
     return success();
 }
 
@@ -105,10 +157,20 @@ void OptimizeAffine::runOnOperation() {
     auto ctx = &getContext();
     {
         RewritePatternSet patterns(ctx);
-        patterns.add<FuseAffine>(ctx);
+        patterns.add<FuseLoop>(ctx);
         auto funcs = llvm::to_vector(
             llvm::map_range(mod.getOps(), [](auto &op) { return &op; }));
         applyOpPatternsAndFold(funcs, std::move(patterns), true);
+    }
+    {
+        RewritePatternSet patterns(ctx);
+        patterns.add<ParallelizeLoop>(ctx);
+        GreedyRewriteConfig config{.useTopDownTraversal = true,
+                                   .maxIterations = 1};
+        if (applyPatternsAndFoldGreedily(mod, std::move(patterns),
+                                         std::move(config))
+                .failed())
+            signalPassFailure();
     }
 }
 

@@ -6,7 +6,9 @@ namespace mlir {
 
 std::unique_ptr<Pass> createRelayToAffine();
 
-std::unique_ptr<Pass> createAffineToLLVM();
+std::unique_ptr<Pass> createAffineToSCF();
+
+std::unique_ptr<Pass> createSCFToLLVM();
 
 #define GEN_PASS_REGISTRATION
 #include "tvm-mlir/Conversion/Passes.h.inc"

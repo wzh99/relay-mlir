@@ -5,13 +5,16 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TargetSelect.h"
+#include "mlir/Conversion/SCFToOpenMP/SCFToOpenMP.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
 #include "tvm-mlir/Conversion/Passes.hpp"
@@ -37,8 +40,9 @@ static void populatePasses(PassManager &pm) {
     pm.addPass(relay::createOpFusion());
     pm.addPass(createRelayToAffine());
     pm.addPass(createOptimizeAffine());
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(createAffineToLLVM());
+    pm.addPass(createAffineToSCF());
+    pm.addPass(createConvertSCFToOpenMPPass());
+    pm.addPass(createSCFToLLVM());
 }
 
 static bool printNone(Pass *, Operation *) { return false; }
@@ -55,8 +59,8 @@ int main(int argc, char const *argv[]) {
 
     // Initialize MLIR context
     MLIRContext mlirCtx;
-    mlirCtx
-        .loadDialect<relay::RelayDialect, func::FuncDialect, scf::SCFDialect>();
+    mlirCtx.loadDialect<relay::RelayDialect, func::FuncDialect, scf::SCFDialect,
+                        LLVM::LLVMDialect>();
     mlirCtx.disableMultithreading();
     mlirCtx.printOpOnDiagnostic(true);
 
@@ -90,6 +94,7 @@ int main(int argc, char const *argv[]) {
 
     // Export to LLVM
     registerLLVMDialectTranslation(mlirCtx);
+    registerOpenMPDialectTranslation(mlirCtx);
     llvm::LLVMContext llvmCtx;
     auto llvmMod = translateModuleToLLVMIR(mlirMod, llvmCtx, inputPath);
     if (!llvmMod) Fatal("Failed to emit LLVM IR");

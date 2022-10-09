@@ -6,6 +6,8 @@ target_link_libraries(test
     MLIRRelayTransforms
     TVMMLIRConversion
     TVMMLIRTransforms
+    MLIRSCFToOpenMP
     MLIRExecutionEngine
+    MLIROpenMPToLLVMIRTranslation
     LLVMX86CodeGen
 )
