@@ -64,13 +64,13 @@ LogicalResult OpFusionPattern::matchAndRewrite(
     // Find out the group
     if (root->getDialect()->getNamespace() !=
         RelayDialect::getDialectNamespace())
-        return success();
+        return failure();
     if (cast<func::FuncOp>(root->getParentOp()).getName() != "main")
-        return success();
+        return failure();
     auto &group = groups[opGrpIdx.at(root)];
 
     // Only rewrite at outputs
-    if (!llvm::is_contained(group.outputs, root)) return success();
+    if (!llvm::is_contained(group.outputs, root)) return failure();
 
     // Find all arguments of the new function
     DenseSet<Operation *> opSet(group.ops.begin(), group.ops.end());
@@ -184,9 +184,11 @@ void OpFusion::runOnOperation() {
     // Create nested function for each group
     RewritePatternSet patterns(ctx);
     patterns.add<OpFusionPattern>(ctx, groups, opGrpIdx);
-    GreedyRewriteConfig config{.useTopDownTraversal = true, .maxIterations = 0};
-    applyPatternsAndFoldGreedily(mainFn, std::move(patterns), std::move(config))
-        .succeeded();
+    GreedyRewriteConfig config{.useTopDownTraversal = true, .maxIterations = 1};
+    if (applyPatternsAndFoldGreedily(mainFn, std::move(patterns),
+                                     std::move(config))
+            .failed())
+        signalPassFailure();
 }
 
 std::unique_ptr<Pass> createOpFusion() { return std::make_unique<OpFusion>(); }
