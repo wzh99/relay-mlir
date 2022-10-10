@@ -213,14 +213,11 @@ void OptimizeAffine::runOnOperation() {
     {
         RewritePatternSet patterns(ctx);
         patterns.add<ParallelizeLoop>(ctx);
-        GreedyRewriteConfig config{.useTopDownTraversal = true,
-                                   .maxIterations = 1};
-        if (applyPatternsAndFoldGreedily(mod, std::move(patterns),
-                                         std::move(config))
-                .failed())
+        if (applyPatternsAndFoldGreedily(mod, std::move(patterns)).failed())
             signalPassFailure();
     }
 
+    // Vectorize loops
     {
         RewritePatternSet patterns(ctx);
         patterns.add<VectorizeLoop>(ctx);

@@ -40,10 +40,7 @@ void SCFToLLVM::runOnOperation() {
         vector::populateVectorToVectorCanonicalizationPatterns(patterns);
         vector::populateVectorTransferLoweringPatterns(patterns, 1);
         vector::populateVectorMaskMaterializationPatterns(patterns, false);
-        GreedyRewriteConfig config{.useTopDownTraversal = true,
-                                   .maxIterations = 1};
-        applyPatternsAndFoldGreedily(getOperation(), std::move(patterns),
-                                     std::move(config))
+        applyPatternsAndFoldGreedily(getOperation(), std::move(patterns))
             .succeeded();
     }
 

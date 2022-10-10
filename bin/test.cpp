@@ -54,9 +54,11 @@ static bool printModuleOnce(Pass *pass, Operation *op) {
 
 int main(int argc, char const *argv[]) {
     // Parse command line arguments
-    llvm::DebugFlag = true;
-    llvm::setCurrentDebugType("dialect-conversion");
     cl::ParseCommandLineOptions(argc, argv, "TVM-MLIR Sample Program");
+
+    // Setup LLVM debugging info
+    // llvm::DebugFlag = true;
+    llvm::setCurrentDebugType("dialect-conversion");
 
     // Initialize MLIR context
     MLIRContext mlirCtx;
