@@ -22,7 +22,7 @@
 #include "mlir/Dialect/X86Vector/X86VectorDialect.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "tvm-mlir/Conversion/Passes.hpp"
+#include "relay-mlir/Conversion/Passes.hpp"
 
 namespace mlir {
 

@@ -10,7 +10,7 @@ std::unique_ptr<Pass> createShapeInference();
 std::unique_ptr<Pass> createOpFusion();
 
 #define GEN_PASS_REGISTRATION
-#include "tvm-mlir/Dialect/Relay/Passes.h.inc"
+#include "relay-mlir/Dialect/Relay/Passes.h.inc"
 
 }  // namespace relay
 }  // namespace mlir

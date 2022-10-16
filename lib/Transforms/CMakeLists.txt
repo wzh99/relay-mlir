@@ -1,8 +1,8 @@
-add_mlir_library(TVMMLIRTransforms
+add_mlir_library(RelayMLIRTransforms
     OptimizeAffine.cpp
 
     DEPENDS
-    TVMMLIRTransformsPassIncGen
+    RelayMLIRTransformsPassIncGen
 
     LINK_LIBS PUBLIC
     MLIRPass

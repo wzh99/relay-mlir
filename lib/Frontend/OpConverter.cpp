@@ -1,8 +1,8 @@
 #include "OpConverter.hpp"
 
 #include "mlir/IR/Builders.h"
-#include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
-#include "tvm-mlir/Support/Common.hpp"
+#include "relay-mlir/Dialect/Relay/RelayOps.hpp"
+#include "relay-mlir/Support/Common.hpp"
 #include "tvm/ir/op.h"
 #include "tvm/relay/attrs/nn.h"
 

@@ -5,8 +5,8 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Rewrite/FrozenRewritePatternSet.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "tvm-mlir/Dialect/Relay/Passes.hpp"
-#include "tvm-mlir/Support/Common.hpp"
+#include "relay-mlir/Dialect/Relay/Passes.hpp"
+#include "relay-mlir/Support/Common.hpp"
 
 namespace mlir {
 namespace relay {

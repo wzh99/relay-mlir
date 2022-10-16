@@ -11,6 +11,6 @@ std::unique_ptr<Pass> createAffineToSCF();
 std::unique_ptr<Pass> createSCFToLLVM();
 
 #define GEN_PASS_REGISTRATION
-#include "tvm-mlir/Conversion/Passes.h.inc"
+#include "relay-mlir/Conversion/Passes.h.inc"
 
 }  // namespace mlir

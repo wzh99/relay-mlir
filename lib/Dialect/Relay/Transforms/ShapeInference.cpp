@@ -1,6 +1,6 @@
 #include "PassDetail.hpp"
-#include "tvm-mlir/Dialect/Relay/Passes.hpp"
-#include "tvm-mlir/Support/Common.hpp"
+#include "relay-mlir/Dialect/Relay/Passes.hpp"
+#include "relay-mlir/Support/Common.hpp"
 
 namespace mlir {
 namespace relay {

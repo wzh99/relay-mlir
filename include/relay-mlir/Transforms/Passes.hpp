@@ -7,6 +7,6 @@ namespace mlir {
 std::unique_ptr<Pass> createOptimizeAffine();
 
 #define GEN_PASS_REGISTRATION
-#include "tvm-mlir/Transforms/Passes.h.inc"
+#include "relay-mlir/Transforms/Passes.h.inc"
 
 }  // namespace mlir

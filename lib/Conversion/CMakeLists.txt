@@ -1,10 +1,10 @@
-add_mlir_conversion_library(TVMMLIRConversion
+add_mlir_conversion_library(RelayMLIRConversion
     RelayToAffine.cpp
     AffineToSCF.cpp
     SCFToLLVM.cpp
 
     DEPENDS
-    TVMMLIRConversionPassIncGen
+    RelayMLIRConversionPassIncGen
 
     LINK_LIBS PUBLIC
     MLIRPass

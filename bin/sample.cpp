@@ -18,14 +18,14 @@
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
-#include "tvm-mlir/Conversion/Passes.hpp"
-#include "tvm-mlir/Dialect/Relay/Passes.hpp"
-#include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
-#include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
-#include "tvm-mlir/Frontend/RelayImporter.hpp"
-#include "tvm-mlir/Support/Common.hpp"
-#include "tvm-mlir/Support/MemRef.hpp"
-#include "tvm-mlir/Transforms/Passes.hpp"
+#include "relay-mlir/Conversion/Passes.hpp"
+#include "relay-mlir/Dialect/Relay/Passes.hpp"
+#include "relay-mlir/Dialect/Relay/RelayDialect.hpp"
+#include "relay-mlir/Dialect/Relay/RelayOps.hpp"
+#include "relay-mlir/Frontend/RelayImporter.hpp"
+#include "relay-mlir/Support/Common.hpp"
+#include "relay-mlir/Support/MemRef.hpp"
+#include "relay-mlir/Transforms/Passes.hpp"
 #include "tvm/ir/module.h"
 
 using namespace mlir;
@@ -54,7 +54,7 @@ static bool printModuleOnce(Pass *pass, Operation *op) {
 
 int main(int argc, char const *argv[]) {
     // Parse command line arguments
-    cl::ParseCommandLineOptions(argc, argv, "TVM-MLIR Sample Program");
+    cl::ParseCommandLineOptions(argc, argv, "relay-mlir Sample Program");
 
     // Setup LLVM debugging info
     // llvm::DebugFlag = true;

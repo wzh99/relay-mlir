@@ -1,7 +1,7 @@
-#include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
+#include "relay-mlir/Dialect/Relay/RelayDialect.hpp"
 
-#include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
-#include "tvm-mlir/Dialect/Relay/RelayOpsDialect.cpp.inc"
+#include "relay-mlir/Dialect/Relay/RelayOps.hpp"
+#include "relay-mlir/Dialect/Relay/RelayOpsDialect.cpp.inc"
 
 namespace mlir {
 namespace relay {
@@ -9,7 +9,7 @@ namespace relay {
 void RelayDialect::initialize() {
     addOperations<
 #define GET_OP_LIST
-#include "tvm-mlir/Dialect/Relay/RelayOps.cpp.inc"
+#include "relay-mlir/Dialect/Relay/RelayOps.cpp.inc"
         >();
 }
 

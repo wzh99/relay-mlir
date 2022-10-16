@@ -6,10 +6,10 @@
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "tvm-mlir/Conversion/Passes.hpp"
-#include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
-#include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
-#include "tvm-mlir/Support/Common.hpp"
+#include "relay-mlir/Conversion/Passes.hpp"
+#include "relay-mlir/Dialect/Relay/RelayDialect.hpp"
+#include "relay-mlir/Dialect/Relay/RelayOps.hpp"
+#include "relay-mlir/Support/Common.hpp"
 
 namespace mlir {
 

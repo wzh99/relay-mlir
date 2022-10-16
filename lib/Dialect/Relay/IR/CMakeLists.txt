@@ -6,7 +6,7 @@ add_mlir_dialect_library(MLIRRelayDialect
     MLIRRelayOpsIncGen
 
     LINK_LIBS PUBLIC
-    TVMMLIRSupport
+    RelayMLIRSupport
     MLIRIR
     MLIRInferTypeOpInterface
 )

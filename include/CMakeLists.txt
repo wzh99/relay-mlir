@@ -1,1 +1,1 @@
-add_subdirectory(tvm-mlir)
+add_subdirectory(relay-mlir)

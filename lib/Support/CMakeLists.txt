@@ -1,2 +1,2 @@
-add_library(TVMMLIRSupport Common.cpp MemRef.cpp)
-target_link_libraries(TVMMLIRSupport fmt::fmt)
+add_library(RelayMLIRSupport Common.cpp MemRef.cpp)
+target_link_libraries(RelayMLIRSupport fmt::fmt)

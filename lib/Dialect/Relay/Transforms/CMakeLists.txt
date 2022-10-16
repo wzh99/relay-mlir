@@ -10,5 +10,5 @@ add_mlir_dialect_library(MLIRRelayTransforms
     MLIRPass
     MLIRRelayDialect
     MLIRTransformUtils
-    TVMMLIRSupport
+    RelayMLIRSupport
 )

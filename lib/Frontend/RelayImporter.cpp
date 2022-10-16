@@ -1,9 +1,9 @@
-#include "tvm-mlir/Frontend/RelayImporter.hpp"
+#include "relay-mlir/Frontend/RelayImporter.hpp"
 
 #include "OpConverter.hpp"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
-#include "tvm-mlir/Support/Common.hpp"
+#include "relay-mlir/Dialect/Relay/RelayOps.hpp"
+#include "relay-mlir/Support/Common.hpp"
 #include "tvm/relay/expr_functor.h"
 
 namespace mlir {

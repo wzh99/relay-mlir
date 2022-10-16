@@ -1,11 +1,11 @@
-add_llvm_executable(test test.cpp)
-target_link_libraries(test 
+add_llvm_executable(sample sample.cpp)
+target_link_libraries(sample 
     PUBLIC 
     MLIRRelayDialect 
     MLIRRelayFrontend 
     MLIRRelayTransforms
-    TVMMLIRConversion
-    TVMMLIRTransforms
+    RelayMLIRConversion
+    RelayMLIRTransforms
     MLIRSCFToOpenMP
     MLIRExecutionEngine
     MLIROpenMPToLLVMIRTranslation

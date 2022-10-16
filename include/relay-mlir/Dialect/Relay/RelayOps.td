@@ -1,7 +1,7 @@
 #ifndef MLIR_TVM_RELAY_OPS
 #define MLIR_TVM_RELAY_OPS
 
-include "tvm-mlir/Dialect/Relay/RelayDialect.td"
+include "relay-mlir/Dialect/Relay/RelayDialect.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 

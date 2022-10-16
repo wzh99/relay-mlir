@@ -12,8 +12,8 @@
 #include "mlir/IR/Dominance.h"
 #include "mlir/Transforms/FoldUtils.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "tvm-mlir/Support/Common.hpp"
-#include "tvm-mlir/Transforms/Passes.hpp"
+#include "relay-mlir/Support/Common.hpp"
+#include "relay-mlir/Transforms/Passes.hpp"
 
 namespace mlir {
 

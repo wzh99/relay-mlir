@@ -1,11 +1,11 @@
-#include "tvm-mlir/Dialect/Relay/RelayOps.hpp"
+#include "relay-mlir/Dialect/Relay/RelayOps.hpp"
 
 #include "mlir/IR/OpImplementation.h"
-#include "tvm-mlir/Dialect/Relay/RelayDialect.hpp"
-#include "tvm-mlir/Support/Common.hpp"
+#include "relay-mlir/Dialect/Relay/RelayDialect.hpp"
+#include "relay-mlir/Support/Common.hpp"
 
 #define GET_OP_CLASSES
-#include "tvm-mlir/Dialect/Relay/RelayOps.cpp.inc"
+#include "relay-mlir/Dialect/Relay/RelayOps.cpp.inc"
 
 namespace mlir {
 namespace relay {

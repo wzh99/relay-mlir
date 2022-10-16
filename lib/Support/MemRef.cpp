@@ -1,6 +1,6 @@
-#include "tvm-mlir/Support/MemRef.hpp"
+#include "relay-mlir/Support/MemRef.hpp"
 
-#include "tvm-mlir/Support/Common.hpp"
+#include "relay-mlir/Support/Common.hpp"
 
 namespace mlir {
 

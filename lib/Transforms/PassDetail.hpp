@@ -1,7 +1,7 @@
 #pragma once
 
 #include "mlir/IR/BuiltinDialect.h"
-#include "tvm-mlir/Transforms/Passes.hpp"
+#include "relay-mlir/Transforms/Passes.hpp"
 
 namespace mlir {
 
@@ -23,6 +23,6 @@ class ArithmeticDialect;
 class ModuleOp;
 
 #define GEN_PASS_CLASSES
-#include "tvm-mlir/Transforms/Passes.h.inc"
+#include "relay-mlir/Transforms/Passes.h.inc"
 
 }  // namespace mlir
